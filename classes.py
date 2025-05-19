@@ -13,6 +13,18 @@ class Card:
     def __str__(self):
         return f'{self.rank}{Card.unicode_dict[self.suit]}'
 
+    def to_storage_str(self):
+        """Zwraca format zgodny z from_str, np. '4-c'."""
+        return f"{self.rank}-{self.suit}"
+
+    @staticmethod
+    def from_str(card_str: str):
+        try:
+            value, suit = card_str.split("-")
+            return Card(value, suit)
+        except ValueError:
+            raise ValueError(f"Nieprawidłowy format karty: {card_str}")
+
 class Deck:
     def __init__(self):
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
