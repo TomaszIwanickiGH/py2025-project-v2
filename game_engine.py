@@ -2,6 +2,9 @@ from typing import List
 from classes import Player, Deck, Card
 from hand_evaluator import hand_rank
 import random
+from src.fileops.session_manager import SessionManager
+from datetime import datetime
+import uuid
 
 class InvalidActionError(Exception):
     pass
@@ -11,15 +14,20 @@ class InsufficientFundsError(Exception):
 
 class GameEngine:
     def __init__(self, players: List[Player], deck: Deck,
-                 small_blind: int = 25, big_blind: int = 50):
+                 small_blind: int = 25, big_blind: int = 50,
+                 from_loaded_session: bool = False):
         self.players = players
         self.deck = deck
         self.small_blind = small_blind
         self.big_blind = big_blind
         self.pot = 0
+        self.bets_log = []
+        self.from_loaded_session = from_loaded_session
 
     def play_round(self) -> None:
+        session_manager = SessionManager()
         self.pot = 0
+        self.bets_log = []  # reset logu zakładów na nową rundę
         self.deck.shuffle()
 
         # 1. Blindy
@@ -28,16 +36,33 @@ class GameEngine:
         self.players[1]._Player__stack_ -= self.big_blind
         self.pot += self.small_blind + self.big_blind
 
+        self.bets_log.append({
+            "stage": "preflop",
+            "player_id": 1,
+            "action": "small_blind",
+            "amount": self.small_blind,
+            "pot": self.pot
+        })
+        self.bets_log.append({
+            "stage": "preflop",
+            "player_id": 2,
+            "action": "big_blind",
+            "amount": self.big_blind,
+            "pot": self.pot
+        })
+
         # 2. Rozdanie kart
-        self.deck.deal(self.players)
+        if not self.from_loaded_session:
+            self.deck.deal(self.players)
         for player in self.players:
             if player.get_name() == "Human":
                 print("Twoje karty:", player.cards_to_str())
 
         # 3. Zakłady
         current_bet = self.big_blind
-        for player in self.players:
-            action = self.prompt_bet(player, current_bet)
+        for i, player in enumerate(self.players):
+            action, amount = self.prompt_bet(player, current_bet)
+
             if action == 'fold':
                 winner = self.players[1] if player == self.players[0] else self.players[0]
                 winner._Player__stack_ += self.pot
@@ -45,14 +70,26 @@ class GameEngine:
                 return
 
             elif action == 'raise':
-                raise_amount = 50  # stała wartość podbicia (dla uproszczenia)
-                current_bet += raise_amount
-                player._Player__stack_ -= current_bet
-                self.pot += current_bet
+                player._Player__stack_ -= current_bet + amount
+                self.pot += current_bet + amount
+                self.bets_log.append({
+                    "stage": "betting",
+                    "player_id": i + 1,
+                    "action": "raise",
+                    "amount": amount,
+                    "pot": self.pot
+                })
 
             elif action in ['call', 'check']:
                 player._Player__stack_ -= current_bet
                 self.pot += current_bet
+                self.bets_log.append({
+                    "stage": "betting",
+                    "player_id": i + 1,
+                    "action": action,
+                    "amount": current_bet,
+                    "pot": self.pot
+                })
 
         # 4. Wymiana kart
         for player in self.players:
@@ -66,7 +103,6 @@ class GameEngine:
                 except (ValueError, IndexError):
                     print("Błędne indeksy – żadna karta nie została wymieniona.")
             else:
-                # Bot wymienia losowo do 3 kart
                 count = random.randint(0, 3)
                 indices = random.sample(range(5), count)
                 new_hand = self.exchange_cards(player.get_player_hand(), indices)
@@ -77,52 +113,61 @@ class GameEngine:
         winner._Player__stack_ += self.pot
         print(f"Zwycięzca: {winner.get_name()}, otrzymuje {self.pot} żetonów.")
 
-    def prompt_bet(self, player: Player, current_bet: int) -> str:
+        # 6. Zapis sesji
+        session_data = {
+            "game_id": str(uuid.uuid4()),
+            "timestamp": datetime.utcnow().isoformat(),
+            "stage": "showdown",
+            "players": [
+                {"id": 1, "name": self.players[0].get_name(), "stack": self.players[0].get_stack_amount()},
+                {"id": 2, "name": self.players[1].get_name(), "stack": self.players[1].get_stack_amount()}
+            ],
+            "deck": [card.to_storage_str() for card in self.deck.cards],
+            "hands": {
+                "1": [card.to_storage_str() for card in self.players[0].get_player_hand()],
+                "2": [card.to_storage_str() for card in self.players[1].get_player_hand()]
+            },
+            "bets": self.bets_log,
+            "current_player": None,  # lub podaj numer gracza, który był ostatni
+            "pot": self.pot
+        }
+
+        session_manager.save_session(session_data)
+
+    def prompt_bet(self, player: Player, current_bet: int) -> tuple[str, int]:
         """Pobiera akcję od gracza (human lub bot) — check/call/raise/fold."""
         while True:
             try:
                 action = input(f"{player.get_name()} - aktualna stawka: {current_bet}. "
                                f"Dostępne akcje: check, call, raise, fold. Co robisz? ").lower()
 
-                # Obsługa nieprawidłowych akcji
                 if action not in ['check', 'call', 'raise', 'fold']:
                     raise InvalidActionError("Nieprawidłowa akcja. Wybierz 'check', 'call', 'raise' lub 'fold'.")
 
-                # Sprawdzanie warunku dla 'raise'
                 if action == 'raise':
                     raise_amount = int(input("Podaj wysokość podbicia: "))
                     if raise_amount > player.get_stack_amount():
                         raise InsufficientFundsError("Brak wystarczających środków na podbicie.")
                     return action, raise_amount
 
-                return action, 0  # Dla 'check', 'call', 'fold'
+                return action, 0
 
             except ValueError:
-                print("Błąd wejścia! Proszę podać liczbę (gdy jest wymagane).")
+                print("Błąd wejścia! Proszę podać liczbę.")
             except InvalidActionError as e:
                 print(e)
             except InsufficientFundsError as e:
                 print(e)
 
     def exchange_cards(self, hand: List[Card], indices: List[int]) -> List[Card]:
-        """
-        hand     – 5 kart gracza
-        indices  – lista indeksów (0–4) do wymiany
-        Zwraca: nową listę 5 kart.
-        Stare karty odkłada na spód talii.
-        """
         if not all(0 <= idx < 5 for idx in indices):
             raise IndexError("Indeks karty do wymiany musi być w zakresie 0-4.")
 
-        new_cards = [self.deck.draw() for _ in indices]  # Zmieniamy deck na self.deck
-
-        # Wymiana kart
+        new_cards = [self.deck.draw() for _ in indices]
         for i, idx in enumerate(indices):
             old_card = hand[idx]
             hand[idx] = new_cards[i]
-            self.deck.discard_to_bottom(old_card)  # Zmieniamy deck na self.deck
-
-        return hand
+            self.deck.discard_to_bottom(old_card)
 
         return hand
 
