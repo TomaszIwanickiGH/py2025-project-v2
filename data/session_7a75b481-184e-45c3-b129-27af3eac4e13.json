@@ -1,0 +1,109 @@
+{
+    "game_id": "7a75b481-184e-45c3-b129-27af3eac4e13",
+    "timestamp": "2025-05-19T07:48:08.458791",
+    "stage": "showdown",
+    "players": [
+        {
+            "id": 1,
+            "name": "Human",
+            "stack": 1100
+        },
+        {
+            "id": 2,
+            "name": "Bot",
+            "stack": 900
+        }
+    ],
+    "deck": [
+        "8-c",
+        "9-d",
+        "7-h",
+        "K-d",
+        "9-h",
+        "5-c",
+        "K-s",
+        "6-s",
+        "4-d",
+        "8-h",
+        "Q-c",
+        "3-s",
+        "2-d",
+        "7-s",
+        "J-s",
+        "8-s",
+        "J-c",
+        "2-s",
+        "5-d",
+        "3-h",
+        "2-h",
+        "A-c",
+        "6-c",
+        "7-c",
+        "Q-s",
+        "3-c",
+        "4-s",
+        "K-h",
+        "6-d",
+        "J-d",
+        "9-s",
+        "8-d",
+        "A-h",
+        "9-c",
+        "Q-h",
+        "6-h",
+        "2-c",
+        "4-c",
+        "4-h",
+        "10-c",
+        "10-d",
+        "A-d"
+    ],
+    "hands": {
+        "1": [
+            "10-h",
+            "5-s",
+            "10-s",
+            "3-d",
+            "5-h"
+        ],
+        "2": [
+            "7-d",
+            "Q-d",
+            "K-c",
+            "J-h",
+            "A-s"
+        ]
+    },
+    "bets": [
+        {
+            "stage": "preflop",
+            "player_id": 1,
+            "action": "small_blind",
+            "amount": 25,
+            "pot": 75
+        },
+        {
+            "stage": "preflop",
+            "player_id": 2,
+            "action": "big_blind",
+            "amount": 50,
+            "pot": 75
+        },
+        {
+            "stage": "betting",
+            "player_id": 1,
+            "action": "raise",
+            "amount": 400,
+            "pot": 525
+        },
+        {
+            "stage": "betting",
+            "player_id": 2,
+            "action": "call",
+            "amount": 50,
+            "pot": 575
+        }
+    ],
+    "current_player": null,
+    "pot": 575
+}
