@@ -15,7 +15,8 @@ class InsufficientFundsError(Exception):
 class GameEngine:
     def __init__(self, players: List[Player], deck: Deck,
                  small_blind: int = 25, big_blind: int = 50,
-                 from_loaded_session: bool = False):
+                 from_loaded_session: bool = False,
+                 game_id: str = None):
         self.players = players
         self.deck = deck
         self.small_blind = small_blind
@@ -23,11 +24,12 @@ class GameEngine:
         self.pot = 0
         self.bets_log = []
         self.from_loaded_session = from_loaded_session
+        self.game_id = game_id or str(uuid.uuid4())  # użyj przekazanego lub generuj nowy
 
     def play_round(self) -> None:
         session_manager = SessionManager()
         self.pot = 0
-        self.bets_log = []  # reset logu zakładów na nową rundę
+        self.bets_log = []
         self.deck.shuffle()
 
         # 1. Blindy
@@ -98,24 +100,28 @@ class GameEngine:
                 try:
                     indices_str = input("Podaj indeksy kart do wymiany (np. 0 2 4): ")
                     indices = list(map(int, indices_str.strip().split()))
-                    new_hand = self.exchange_cards(player.get_player_hand(), indices)
+                    new_hand = self.exchange_cards(player, player.get_player_hand(), indices)
                     player._Player__hand_ = new_hand
                 except (ValueError, IndexError):
                     print("Błędne indeksy – żadna karta nie została wymieniona.")
             else:
                 count = random.randint(0, 3)
                 indices = random.sample(range(5), count)
-                new_hand = self.exchange_cards(player.get_player_hand(), indices)
+                new_hand = self.exchange_cards(player, player.get_player_hand(), indices)
                 player._Player__hand_ = new_hand
 
         # 5. Showdown
+        print("\nKarty graczy przed rozstrzygnięciem:")
+        for player in self.players:
+            print(f"{player.get_name()}: {player.cards_to_str()}")
+
         winner = self.showdown()
         winner._Player__stack_ += self.pot
         print(f"Zwycięzca: {winner.get_name()}, otrzymuje {self.pot} żetonów.")
 
         # 6. Zapis sesji
         session_data = {
-            "game_id": str(uuid.uuid4()),
+            "game_id": self.game_id,
             "timestamp": datetime.utcnow().isoformat(),
             "stage": "showdown",
             "players": [
@@ -128,7 +134,7 @@ class GameEngine:
                 "2": [card.to_storage_str() for card in self.players[1].get_player_hand()]
             },
             "bets": self.bets_log,
-            "current_player": None,  # lub podaj numer gracza, który był ostatni
+            "current_player": None,
             "pot": self.pot
         }
 
@@ -159,15 +165,17 @@ class GameEngine:
             except InsufficientFundsError as e:
                 print(e)
 
-    def exchange_cards(self, hand: List[Card], indices: List[int]) -> List[Card]:
+    def exchange_cards(self, player: Player, hand: List[Card], indices: List[int]) -> List[Card]:
         if not all(0 <= idx < 5 for idx in indices):
             raise IndexError("Indeks karty do wymiany musi być w zakresie 0-4.")
 
         new_cards = [self.deck.draw() for _ in indices]
         for i, idx in enumerate(indices):
             old_card = hand[idx]
-            hand[idx] = new_cards[i]
+            new_card = new_cards[i]
+            hand[idx] = new_card
             self.deck.discard_to_bottom(old_card)
+            print(f"{player.get_name()} wymienił kartę {old_card} → {new_card}")
 
         return hand
 
