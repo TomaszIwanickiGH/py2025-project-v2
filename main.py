@@ -3,12 +3,10 @@ from game_engine import GameEngine
 from src.fileops.session_manager import SessionManager
 import uuid
 
-def reconstruct_players(saved_players, saved_hands):
+def reconstruct_players(saved_players):
     players = []
     for p in saved_players:
         player = Player(p["stack"], p["name"])
-        hand_cards = [Card.from_str(card_str) for card_str in saved_hands[str(p["id"])]]
-        player._Player__hand_ = hand_cards
         players.append(player)
     return players
 
@@ -33,8 +31,8 @@ def main():
             print("Nie udało się wczytać gry.")
             return
 
-        players = reconstruct_players(session["players"], session["hands"])
         deck = reconstruct_deck(session["deck"])
+        players = reconstruct_players(session["players"])
 
         engine = GameEngine(players, deck, from_loaded_session=True, game_id=session_id)
         engine.bets_log = session.get("bets", [])

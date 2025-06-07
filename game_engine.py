@@ -30,6 +30,7 @@ class GameEngine:
         session_manager = SessionManager()
         self.pot = 0
         self.bets_log = []
+        self.deck = Deck()
         self.deck.shuffle()
 
         # 1. Blindy
@@ -53,9 +54,10 @@ class GameEngine:
             "pot": self.pot
         })
 
-        # 2. Rozdanie kart
-        if not self.from_loaded_session:
-            self.deck.deal(self.players)
+        # 2. Rozdanie kart – zawsze nowa ręka
+        self.deck.deal(self.players)
+
+        # Wyświetlenie kart gracza
         for player in self.players:
             if player.get_name() == "Human":
                 print("Twoje karty:", player.cards_to_str())
@@ -167,7 +169,7 @@ class GameEngine:
 
     def exchange_cards(self, player: Player, hand: List[Card], indices: List[int]) -> List[Card]:
         if not all(0 <= idx < 5 for idx in indices):
-            raise IndexError("Indeks karty do wymiany musi być w zakresie 0-4.")
+            raise IndexError("Indeks karty do wymiany musi być w zakresie 0–4.")
 
         new_cards = [self.deck.draw() for _ in indices]
         for i, idx in enumerate(indices):
@@ -175,7 +177,9 @@ class GameEngine:
             new_card = new_cards[i]
             hand[idx] = new_card
             self.deck.discard_to_bottom(old_card)
-            print(f"{player.get_name()} wymienił kartę {old_card} → {new_card}")
+
+            if player.get_name().lower() == "human":
+                print(f"Wymieniłeś kartę {old_card} → {new_card}")
 
         return hand
 
