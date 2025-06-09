@@ -33,10 +33,18 @@ class GameEngine:
         self.deck = Deck()
         self.deck.shuffle()
 
+        # Resetujemy aktualne zakłady graczy
+        for player in self.players:
+            player._Player__current_bet_ = 0
+
         # 1. Blindy
         print("Pobieranie blindów...")
         self.players[0]._Player__stack_ -= self.small_blind
+        self.players[0]._Player__current_bet_ = self.small_blind
+
         self.players[1]._Player__stack_ -= self.big_blind
+        self.players[1]._Player__current_bet_ = self.big_blind
+
         self.pot += self.small_blind + self.big_blind
 
         self.bets_log.append({
@@ -74,24 +82,35 @@ class GameEngine:
                 return
 
             elif action == 'raise':
-                player._Player__stack_ -= current_bet + amount
-                self.pot += current_bet + amount
+                total_bet = current_bet + amount
+                to_call = total_bet - player._Player__current_bet_
+
+                player._Player__stack_ -= to_call
+                player._Player__current_bet_ += to_call
+                current_bet = total_bet
+                self.pot += to_call
+
                 self.bets_log.append({
                     "stage": "betting",
                     "player_id": i + 1,
                     "action": "raise",
-                    "amount": amount,
+                    "amount": to_call,
                     "pot": self.pot
                 })
 
             elif action in ['call', 'check']:
-                player._Player__stack_ -= current_bet
-                self.pot += current_bet
+                to_call = current_bet - player._Player__current_bet_
+
+                if to_call > 0:
+                    player._Player__stack_ -= to_call
+                    player._Player__current_bet_ += to_call
+                    self.pot += to_call
+
                 self.bets_log.append({
                     "stage": "betting",
                     "player_id": i + 1,
                     "action": action,
-                    "amount": current_bet,
+                    "amount": to_call,
                     "pot": self.pot
                 })
 

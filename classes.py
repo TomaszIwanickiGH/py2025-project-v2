@@ -54,6 +54,7 @@ class Player:
         self.__stack_ = money
         self.__name_ = name
         self.__hand_ = []
+        self.__current_bet_ = 0  # <== DODANE
 
     def take_card(self, card):
         self.__hand_.append(card)
